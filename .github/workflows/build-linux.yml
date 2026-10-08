@@ -1,0 +1,39 @@
+name: Build Agentic Blender Linux
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, feat/mcp-native-foundation]
+    paths:
+      - 'agentic_blender/**'
+      - 'blender_addon/**'
+      - 'distribution/**'
+      - 'pyproject.toml'
+      - '.github/workflows/build-linux.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit and syntax checks
+        run: |
+          python3 -m compileall -q agentic_blender blender_addon tests distribution
+          python3 -m unittest discover -s tests -v
+      - name: Package complete Linux distribution
+        run: bash distribution/build-linux.sh
+      - name: Verify distribution and startup
+        run: bash distribution/smoke-linux.sh
+      - name: Checksums
+        run: cd dist && sha256sum agentic-blender-*.tar.xz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agentic-blender-linux-x64
+          path: |
+            dist/agentic-blender-*.tar.xz
+            dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
